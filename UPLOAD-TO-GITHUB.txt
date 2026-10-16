@@ -1,0 +1,23 @@
+BLOOMDAY v6 — COMPLETE DEPLOYMENT FIX
+
+WHY THIS UPDATE IS NEEDED
+The public GitHub main branch was missing google-config.js and food-library.js, and index.html did not load the Google config. The currently published app source did not match the Google Drive package. Adding an email to Google's Test users list alone cannot fix the app's missing Client ID configuration.
+
+BEFORE UPLOADING (IMPORTANT)
+1. Open google-config.js in a text editor.
+2. Replace PASTE_YOUR_GOOGLE_OAUTH_WEB_CLIENT_ID_HERE with the OAuth Web application Client ID from Google Cloud Console. Keep the single quotes. Example format: '1234567890-abc.apps.googleusercontent.com'.
+3. Do NOT put a Google client secret in this file.
+
+UPLOAD
+1. In GitHub repo vijayrajen/bloomday, use Add file -> Upload files.
+2. Upload and replace all files/folders from this extracted package into the REPOSITORY ROOT (the same level as index.html). Do not upload the outer folder as a nested folder.
+3. Commit to main. The package includes index.html, app.js, styles.css, food-library.js, google-config.js, sw.js, manifest, icons and assets/.
+4. Wait for GitHub Pages deployment to complete.
+
+VERIFY
+A. Open https://vijayrajen.github.io/bloomday/google-config.js?v=6 . It must show your real Client ID and NOT the placeholder.
+B. Open https://vijayrajen.github.io/bloomday/food-library.js?v=6 . It should show JavaScript source rather than a 404.
+C. Open https://vijayrajen.github.io/bloomday/?v=6 and open Backup & Restore. The setup warning should disappear once the real Client ID is loaded.
+D. Then select Sign in with Google. Test users are checked at that stage, so use an account listed under Google Auth Platform -> Audience -> Test users.
+
+If the URL still shows old code, in Chrome press Ctrl+Shift+R. If using the installed PWA, close it and reopen the normal website in a browser first. This release changes the service-worker cache name to bloomday-static-v6.

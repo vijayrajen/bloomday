@@ -1,86 +1,25 @@
-# BloomDay — Free personal routine & diet tracker
+# BloomDay v6 — personal routine & diet tracker
 
-**Tagline:** Healthy habits, happier you.
+A mobile-first installable web app for iPhone with routine tracking, Indian food calorie suggestions, weight and diet dashboards, local JSON backup, and optional Google Drive backup/restore.
 
-BloomDay is a mobile-first, installable web app designed for personal use on an iPhone. It can be edited on Windows and hosted for free as a static site. No paid developer account, database or native iOS build is required for this version.
+## Deploy to GitHub Pages
 
-## What's included
+Follow `UPLOAD-TO-GITHUB.txt` exactly. Before upload, edit `google-config.js` and replace the placeholder with the Google OAuth Web application Client ID. Never add a client secret.
 
-- Profile setup: name, age, height, current weight, target weight and calorie goal.
-- Daily routine list with your starter tasks, editable names/times/icons, add/hide/delete options and date-specific check-offs.
-- Diet tracker with Breakfast, Mid-morning Snack, Lunch, Evening Snack and Dinner; add custom slots such as Tea.
-- Meal detail page with multiple food items, quantity/unit, automatically estimated calories for a built-in list of common Indian and South Indian foods, editable estimates, and optional overall meal calories.
-- Dated daily weight entries and a weight-history chart.
-- Routine dashboard with daily/weekly/monthly/yearly views and per-task completion counts.
-- Diet dashboard with average calories on logged days, logging consistency and meal-slot consistency.
-- Local JSON export/import backup.
-- Optional Google sign-in and manual Google Drive backup/restore (requires a one-time Google OAuth Web Client ID setup).
-- Installable home-screen web app and static offline shell when hosted over HTTPS.
+Upload the contents of this folder into the `main` branch repository root, preserving the `assets/` directory. Wait for GitHub Pages to deploy, then verify the files using the URLs in the setup guide.
 
-## Run locally on Windows
+## Local preview on Windows
 
-### Quick preview
+Double-click `start-local.bat`; keep the terminal window open. Then visit `http://127.0.0.1:8080`.
 
-1. Extract the ZIP to a normal folder.
-2. Double-click `start-local.bat`.
-3. It starts a tiny local server using Windows PowerShell and opens `http://127.0.0.1:8080` in your browser. Keep the black command window open while using the app; press Ctrl+C to stop it. No Python, Node.js or extra packages are needed.
+## Google Drive
 
-If Windows blocks the script, use the included `.bat` file (it invokes PowerShell with a process-only execution-policy override); no system-wide policy is changed.
+See `GOOGLE-DRIVE-SETUP.md`. Google sign-in is optional. The app uses a public OAuth client ID and requests Drive file access. Backup/restore is manual, not automatic sync. Never put any Google client secret into client-side code.
 
-## Host free with GitHub Pages
+## Indian food calories
 
-GitHub Pages serves static files from a repository. To publish:
+See `FOOD-CALORIE-LOOKUP.md`. Calorie values are estimates and depend on portions and recipes.
 
-1. Sign in to GitHub and create a new **public** repository named `bloomday` (no paid plan required for a public repository).
-2. Upload the *contents* of this folder into the repository's root. Make sure `index.html`, `styles.css`, `app.js`, `manifest.webmanifest`, `sw.js`, `apple-touch-icon.png`, `apple-touch-icon-v2.png`, `favicon-v2.ico`, `assets/` and `.nojekyll` are at the root level. Keep the contents of `assets/` in a folder named exactly `assets`. If updating an earlier deployment, upload/replace the files and commit the changes.
-3. Open the repository's **Settings → Pages**.
-4. Under **Build and deployment**, choose **Deploy from a branch**.
-5. Choose branch `main` and folder `/(root)`, then save.
-6. Wait for the published address to appear in the Pages section. It will usually look like `https://YOUR-USERNAME.github.io/bloomday/`.
-7. Open that exact address in Safari on your wife's iPhone.
+## Local privacy
 
-**Privacy note:** a public GitHub Pages site means the website source files are public. BloomDay does not send entries to GitHub or a server; profile, tasks and logs are saved in browser local storage on the device/browser where she uses the app. Do not put personal data inside the source files or repository. This version does not synchronise records between devices.
-
-## If the icon is missing on GitHub Pages
-
-- Confirm the files `apple-touch-icon-v2.png`, `favicon-v2.ico` and `assets/icon-192-v2.png` are committed in the repository at the same level as `index.html` (with the PNGs inside `assets/`). File and folder names are case-sensitive.
-- Test the published paths by opening `YOUR-PAGES-URL/apple-touch-icon-v2.png` and `YOUR-PAGES-URL/assets/icon-192-v2.png` directly. If either gives a 404, correct the uploaded file locations.
-- After updating the repository, wait for the Pages deployment to finish, then reload the page. The updated service-worker cache is named v2 to avoid using the old icon cache.
-- For an iPhone Home Screen icon, remove the old BloomDay shortcut and add it again from Safari after deployment.
-
-## Add to the iPhone Home Screen
-
-1. Open the published site in **Safari** on the iPhone.
-2. Tap Share.
-3. Choose **Add to Home Screen**.
-4. If available, switch on **Open as Web App**.
-5. Tap **Add**. The BloomDay icon will appear on the Home Screen.
-
-Use Safari consistently for BloomDay. The app's local browser storage is separate from storage in other browsers. If Safari website data is cleared or the device is lost, local data may be removed; use **Profile → Export backup** periodically and keep the downloaded JSON file somewhere safe.
-
-## Google sign-in & Drive backup
-
-Optional Google sign-in is available after configuring `google-config.js`. Follow `GOOGLE-DRIVE-SETUP.md`. BloomDay creates or updates one `BloomDay-backup.json` file in a `BloomDay` folder in the connected Google Drive. Saving and restoring are manual; this does not provide live two-way sync. Restore replaces the current browser data after confirmation. The Drive access token is kept in memory only.
-
-Google sign-in authorizes Drive access; it does not securely gate access to the public GitHub Pages website. Personal app data remains local to the browser until the user explicitly chooses to save it to Drive.
-
-## Important limitations of this zero-cost version
-
-- This is a web app, not an App Store native app.
-- No live cloud sync, secure server-side account enforcement, or push reminders are included. The built-in calorie helper works offline from a curated Indian-food list; it is not an exhaustive or recipe-specific nutrition database.
-- Calories are estimated automatically for recognised foods. Estimates vary with serving size, recipe, brand, oil/ghee and sugar; use package labels when available or edit the estimate. Unknown food names still require manual calorie entry.
-- Backups are manual JSON exports; restoring replaces current browser data.
-- The first setup asks for a calorie goal defaulted to 1,500 kcal. Change it to a suitable personal target in Profile if needed.
-
-## Files
-
-- `index.html` — app shell and navigation
-- `styles.css` — pink responsive interface
-- `app.js` — routines, diet records, food-entry calorie calculation, dashboard calculations, local storage and Google Drive backup/restore
-- `food-library.js` — offline Indian-food names, aliases and approximate serving calorie values
-- `google-config.js` — Google OAuth Web Client ID placeholder; configure before using Google features
-- `GOOGLE-DRIVE-SETUP.md` — setup steps, permissions, and privacy notes
-- `manifest.webmanifest` — home-screen/PWA metadata
-- `sw.js` — static offline caching
-- `apple-touch-icon.png`, `apple-touch-icon-v2.png`, `favicon-v2.ico`, `assets/` — app icon sizes and browser favicon
-- `start-local.bat` — local Windows preview
+Routine, diet and weight logs remain in the browser until the user exports a JSON file or explicitly saves a Drive backup. Anyone can visit the public website; Google sign-in is for Drive authorization, not website access control.

@@ -1,6 +1,6 @@
 # BloomDay Indian food calorie estimates
 
-BloomDay includes an offline lookup for common Indian and South Indian food names. Type a name such as **idli**, **plain dosa**, **red rice**, **sambar**, **keerai poriyal**, **chicken biryani**, **fish curry**, **curd rice**, **filter coffee** or **banana**, then choose from the visible pink suggestion list below the food field. Tap a result to select it. BloomDay fills a typical quantity and estimates calories based on the selected unit. Quantity and unit changes recalculate the estimate. The calories field stays editable; on existing manual entries, use **Use estimate** to replace the manual value.
+BloomDay includes an offline lookup for common Indian and South Indian food names. Type a name such as **idli**, **plain dosa**, **red rice**, **sambar**, **keerai poriyal**, **chicken biryani**, **fish curry**, **curd rice**, **filter coffee** or **banana**, then choose a suggestion. BloomDay fills a typical quantity and estimates calories based on the selected unit. Quantity and unit changes recalculate the estimate. The calories field stays editable; on existing manual entries, use **Use estimate** to replace the manual value.
 
 ## Accuracy and limits
 
@@ -11,8 +11,3 @@ The official ICMR-NIN **Indian Food Composition Tables (IFCT 2017)** are a usefu
 ## Updating GitHub Pages
 
 Upload/replace `index.html`, `app.js`, `food-library.js`, `styles.css`, and `sw.js` in the repository root. Keep the existing `assets` folder and `google-config.js`. Commit to the branch used by GitHub Pages. The service worker cache was bumped to v4 so the revised app and the food library can be refreshed.
-
-
-## Visible food suggestions (version 5)
-
-This version uses an explicit pink dropdown below the food name field, rather than relying on a browser-native datalist. When the input receives focus it shows a short list of popular foods; as you type (for example `idl`) it filters names and aliases. Tap a result to fill the default portion and calories. The files use a v5 cache key and query strings to force GitHub Pages browsers to request the updated scripts/styles.
