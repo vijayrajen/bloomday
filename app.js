@@ -456,10 +456,9 @@ function renderFoodModal(modal) {
   const manualCalories = item ? item.calorieSource !== 'estimated' : false;
   const estimateMessage = initialEstimate
     ? `Typical estimate for ${escapeHTML(initialEstimate.food.name)}: about ${initialEstimate.calories} kcal for this quantity. Recipes and oil/ghee can change the actual value.${manualCalories ? ' The saved calorie value is manual.' : ''} <button class="text-link-button" type="button" data-action="use-food-estimate">Use estimate</button>`
-    : 'Start typing an Indian food or drink and choose a suggestion to estimate calories. You can always enter calories manually.';
-  const options = lookup ? lookup.names.map(name => `<option value="${escapeHTML(name)}"></option>`).join('') : '';
+    : 'Type an Indian food name to see matching suggestions. Select a result to fill in a typical portion and estimated calories. You can edit the calories at any time.';
   return `<form data-form="food" data-slotid="${escapeHTML(slot?.id || modal.slotId || '')}" data-id="${escapeHTML(itemId)}" data-last-matched="${escapeHTML(lookup?.find(item?.name)?.name || '')}"><div class="form-grid">
-    <div class="field full"><label>Food / drink item</label><input name="name" list="indianFoodSuggestions" autocomplete="off" value="${escapeHTML(item?.name || '')}" placeholder="Try idli, dosa, rice, sambar, chicken curry…" required maxlength="100"><datalist id="indianFoodSuggestions">${options}</datalist><span class="hint">Includes common South Indian and Indian foods; choose a suggestion for an estimate.</span></div>
+    <div class="field full food-name-field"><label for="foodNameInput">Food / drink item</label><div class="food-autocomplete-wrap"><input id="foodNameInput" name="name" autocomplete="off" autocapitalize="off" spellcheck="false" aria-autocomplete="list" aria-controls="foodSuggestionList" aria-expanded="false" value="${escapeHTML(item?.name || '')}" placeholder="Type idli, dosa, rice, sambar, chicken curry…" required maxlength="100"><div class="food-suggestions" id="foodSuggestionList" data-food-suggestions role="listbox" aria-label="Matching Indian foods" hidden></div></div><span class="hint">Suggestions include common South Indian and Indian foods. Tap one to estimate calories.</span></div>
     <div class="field"><label>Quantity</label><input name="quantity" type="number" min="0" step="any" value="${escapeHTML(item?.quantity ?? '1')}" required></div>
     <div class="field"><label>Unit</label><select name="unit">${UNIT_OPTIONS.map(unit => `<option value="${unit}" ${(item?.unit || 'g') === unit ? 'selected' : ''}>${unit}</option>`).join('')}</select></div>
     <div class="field full"><label>Calories (kcal) <span style="font-weight:400;color:var(--muted)">— estimated automatically, editable</span></label><input name="calories" data-manual="${manualCalories ? 'true' : 'false'}" type="number" min="0" max="20000" step="1" value="${escapeHTML(item?.calories ?? '')}" placeholder="Choose a food to estimate"><span class="hint">The estimate updates when the food, quantity or unit changes. Edit the number if needed.</span></div>
@@ -673,6 +672,73 @@ function importBackupFile(file) {
   reader.readAsText(file);
 }
 
+function normaliseFoodQuery(value) {
+  return String(value || '').toLocaleLowerCase('en-IN').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+}
+function foodSuggestionResults(query) {
+  const lookup = window.BLOOMDAY_FOOD_LOOKUP;
+  if (!lookup?.foods?.length) return [];
+  const q = normaliseFoodQuery(query);
+  if (!q) {
+    const featured = ['Idli', 'Plain dosa', 'Cooked white rice', 'Sambar', 'Banana', 'Curd rice', 'Chicken biryani', 'Tea with milk and sugar'];
+    return featured.map(name => lookup.find(name)).filter(Boolean);
+  }
+  const scored = [];
+  for (const food of lookup.foods) {
+    const name = normaliseFoodQuery(food.name);
+    const aliases = (food.aliases || []).map(normaliseFoodQuery);
+    let score = 99;
+    if (name === q || aliases.includes(q)) score = 0;
+    else if (name.startsWith(q)) score = 1;
+    else if (aliases.some(alias => alias.startsWith(q))) score = 2;
+    else if (name.includes(q)) score = 3;
+    else if (aliases.some(alias => alias.includes(q))) score = 4;
+    else continue;
+    scored.push({ food, score });
+  }
+  return scored.sort((a, b) => a.score - b.score || a.food.name.localeCompare(b.food.name)).slice(0, 8).map(entry => entry.food);
+}
+function renderFoodSuggestions(form, query, force = false) {
+  const input = form?.elements?.name;
+  const panel = form?.querySelector('[data-food-suggestions]');
+  if (!input || !panel || !window.BLOOMDAY_FOOD_LOOKUP) return;
+  const value = String(query ?? input.value).trim();
+  if (!force && !value) {
+    panel.hidden = true;
+    input.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  const foods = foodSuggestionResults(value);
+  if (!foods.length) {
+    panel.innerHTML = `<div class="food-suggestion-empty">No matching food found. You can still enter calories manually.</div>`;
+  } else {
+    panel.innerHTML = foods.map(food => {
+      const amount = food.defaultQuantity || 1;
+      const unit = food.defaultUnit || 'g';
+      const estimate = window.BLOOMDAY_FOOD_LOOKUP.estimate(food.name, amount, unit);
+      const kcal = estimate ? estimate.calories : Math.round(food.kcalPer100g * (food.defaultGrams || 100) / 100);
+      const portion = `${amount} ${unit}${unit === 'g' || unit === 'kg' || unit === 'ml' || unit === 'L' ? '' : amount === 1 ? '' : 's'}`;
+      return `<button class="food-suggestion" type="button" role="option" aria-selected="false" data-action="select-food-suggestion" data-food-name="${escapeHTML(food.name)}"><span class="food-suggestion-copy"><strong>${escapeHTML(food.name)}</strong><small>Typical portion: ${escapeHTML(portion)} · approx. ${Math.round(estimate?.grams || food.defaultGrams || 100)} g</small></span><span class="food-suggestion-kcal">${kcal} kcal</span></button>`;
+    }).join('');
+  }
+  panel.hidden = false;
+  panel.dataset.activeIndex = '-1';
+  input.setAttribute('aria-expanded', 'true');
+}
+function hideFoodSuggestions(form) {
+  const panel = form?.querySelector('[data-food-suggestions]');
+  if (panel) panel.hidden = true;
+  form?.elements?.name?.setAttribute('aria-expanded', 'false');
+}
+function chooseFoodSuggestion(button) {
+  const form = button.closest('form[data-form="food"]');
+  if (!form) return;
+  const input = form.elements.name;
+  input.value = button.dataset.foodName || '';
+  hideFoodSuggestions(form);
+  updateFoodEstimate(form, { nameChanged: true });
+}
+
 function updateFoodEstimate(form, options = {}) {
   if (!form || !window.BLOOMDAY_FOOD_LOOKUP) return;
   const nameInput = form.elements.name;
@@ -718,20 +784,52 @@ document.addEventListener('input', event => {
     updateFoodEstimate(form);
     return;
   }
-  if (control.name === 'name') updateFoodEstimate(form, { nameChanged: true });
-  else if (['quantity', 'unit'].includes(control.name)) updateFoodEstimate(form);
+  if (control.name === 'name') {
+    renderFoodSuggestions(form, control.value, true);
+    updateFoodEstimate(form, { nameChanged: true });
+  } else if (['quantity', 'unit'].includes(control.name)) updateFoodEstimate(form);
+});
+document.addEventListener('focusin', event => {
+  const control = event.target;
+  if (control?.name !== 'name' || !control.closest('form[data-form="food"]')) return;
+  renderFoodSuggestions(control.closest('form[data-form="food"]'), control.value, true);
+});
+document.addEventListener('keydown', event => {
+  const input = event.target;
+  const form = input?.closest?.('form[data-form="food"]');
+  if (!form || input.name !== 'name') return;
+  const panel = form.querySelector('[data-food-suggestions]');
+  if (event.key === 'Escape') { hideFoodSuggestions(form); return; }
+  if (!panel || panel.hidden) return;
+  const buttons = [...panel.querySelectorAll('[data-action="select-food-suggestion"]')];
+  if (!buttons.length) return;
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    let index = Number(panel.dataset.activeIndex || -1);
+    index = event.key === 'ArrowDown' ? Math.min(buttons.length - 1, index + 1) : Math.max(0, index < 0 ? buttons.length - 1 : index - 1);
+    panel.dataset.activeIndex = String(index);
+    buttons.forEach((button, i) => { button.classList.toggle('active', i === index); button.setAttribute('aria-selected', String(i === index)); });
+    buttons[index].scrollIntoView({ block: 'nearest' });
+  } else if (event.key === 'Enter') {
+    const index = Number(panel.dataset.activeIndex || 0);
+    if (buttons[index]) { event.preventDefault(); chooseFoodSuggestion(buttons[index]); }
+  }
 });
 document.addEventListener('change', event => {
   const control = event.target;
   const form = control.closest('form[data-form="food"]');
   if (form && ['name', 'quantity', 'unit'].includes(control.name)) {
     updateFoodEstimate(form, { nameChanged: control.name === 'name' });
+    if (control.name === 'name') renderFoodSuggestions(form, control.value, false);
     return;
   }
 });
 
 // Click handling is delegated so the UI can be refreshed from saved state.
 document.addEventListener('click', event => {
+  if (!event.target.closest('.food-autocomplete-wrap')) {
+    document.querySelectorAll('form[data-form=\"food\"] [data-food-suggestions]').forEach(panel => { panel.hidden = true; panel.closest('form')?.elements?.name?.setAttribute('aria-expanded', 'false'); });
+  }
   const navButton = event.target.closest('[data-nav]');
   if (navButton) { switchScreen(navButton.dataset.nav); return; }
   const actionButton = event.target.closest('[data-action]');
@@ -758,6 +856,7 @@ document.addEventListener('click', event => {
     case 'back-to-diet': switchScreen('diet'); break;
     case 'open-food-form': openModal('food', { title: 'Add a food item', slotId: slotid || state.activeSlotId, id: '' }); break;
     case 'edit-food': openModal('food', { title: 'Edit food item', slotId: slotid || state.activeSlotId, id }); break;
+    case 'select-food-suggestion': { chooseFoodSuggestion(actionButton); break; }
     case 'use-food-estimate': {
       const form = actionButton.closest('form[data-form="food"]');
       if (!form || !window.BLOOMDAY_FOOD_LOOKUP) break;
@@ -909,7 +1008,7 @@ document.getElementById('backupImport').addEventListener('change', event => {
 
 // Register the offline app shell only when served over HTTPS or localhost.
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(error => console.warn('Offline caching could not be enabled.', error)));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=5').catch(error => console.warn('Offline caching could not be enabled.', error)));
 }
 
 // Warm the Google Identity Services library. Google features remain optional and the app

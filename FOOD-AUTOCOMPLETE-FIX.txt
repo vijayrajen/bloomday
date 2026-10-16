@@ -1,0 +1,11 @@
+BloomDay visible Indian-food suggestion dropdown fix (v5)
+
+The screenshot showed the old Add Food form text (“No automatic food database is connected”) and no suggestions. This fix adds a custom pink dropdown instead of relying on browser datalist behavior and bumps the service-worker cache to v5.
+
+On GitHub, upload/replace these files in the repository root: index.html, app.js, styles.css, sw.js, food-library.js. Keep google-config.js and the assets folder as-is. Do not replace google-config.js; it may contain your Google OAuth Client ID. Commit changes to the branch used by GitHub Pages and wait for deployment.
+
+Important: the updated index uses app.js?v=5, food-library.js?v=5, styles.css?v=5 and sw.js?v=5 to avoid the old cached UI.
+
+Test: open Diet Tracker > choose a meal > Add item. Tap the Food / drink item field. You should see common foods; type “idl” and a pink dropdown should show “Idli” (and related matches) with estimated calories. Tap “Idli”; the quantity/unit and calorie estimate should fill automatically.
+
+If it still shows the old text after deployment, close the BloomDay tab, open https://vijayrajen.github.io/bloomday/?refresh=5, then hard refresh with Ctrl+F5. On iPhone, close and reopen Safari/PWA.
