@@ -9,11 +9,12 @@ BloomDay is a mobile-first, installable web app designed for personal use on an 
 - Profile setup: name, age, height, current weight, target weight and calorie goal.
 - Daily routine list with your starter tasks, editable names/times/icons, add/hide/delete options and date-specific check-offs.
 - Diet tracker with Breakfast, Mid-morning Snack, Lunch, Evening Snack and Dinner; add custom slots such as Tea.
-- Meal detail page with multiple food items, quantity/unit, optional per-item calories, and optional overall meal calories.
+- Meal detail page with multiple food items, quantity/unit, automatically estimated calories for a built-in list of common Indian and South Indian foods, editable estimates, and optional overall meal calories.
 - Dated daily weight entries and a weight-history chart.
 - Routine dashboard with daily/weekly/monthly/yearly views and per-task completion counts.
 - Diet dashboard with average calories on logged days, logging consistency and meal-slot consistency.
 - Local JSON export/import backup.
+- Optional Google sign-in and manual Google Drive backup/restore (requires a one-time Google OAuth Web Client ID setup).
 - Installable home-screen web app and static offline shell when hosted over HTTPS.
 
 ## Run locally on Windows
@@ -57,11 +58,17 @@ GitHub Pages serves static files from a repository. To publish:
 
 Use Safari consistently for BloomDay. The app's local browser storage is separate from storage in other browsers. If Safari website data is cleared or the device is lost, local data may be removed; use **Profile → Export backup** periodically and keep the downloaded JSON file somewhere safe.
 
+## Google sign-in & Drive backup
+
+Optional Google sign-in is available after configuring `google-config.js`. Follow `GOOGLE-DRIVE-SETUP.md`. BloomDay creates or updates one `BloomDay-backup.json` file in a `BloomDay` folder in the connected Google Drive. Saving and restoring are manual; this does not provide live two-way sync. Restore replaces the current browser data after confirmation. The Drive access token is kept in memory only.
+
+Google sign-in authorizes Drive access; it does not securely gate access to the public GitHub Pages website. Personal app data remains local to the browser until the user explicitly chooses to save it to Drive.
+
 ## Important limitations of this zero-cost version
 
 - This is a web app, not an App Store native app.
-- No cloud sync, account login, push reminders or automatic calorie database is included.
-- Calories are user-entered. Food quantities do not automatically calculate calories.
+- No live cloud sync, secure server-side account enforcement, or push reminders are included. The built-in calorie helper works offline from a curated Indian-food list; it is not an exhaustive or recipe-specific nutrition database.
+- Calories are estimated automatically for recognised foods. Estimates vary with serving size, recipe, brand, oil/ghee and sugar; use package labels when available or edit the estimate. Unknown food names still require manual calorie entry.
 - Backups are manual JSON exports; restoring replaces current browser data.
 - The first setup asks for a calorie goal defaulted to 1,500 kcal. Change it to a suitable personal target in Profile if needed.
 
@@ -69,7 +76,10 @@ Use Safari consistently for BloomDay. The app's local browser storage is separat
 
 - `index.html` — app shell and navigation
 - `styles.css` — pink responsive interface
-- `app.js` — routines, diet records, dashboard calculations and local storage
+- `app.js` — routines, diet records, food-entry calorie calculation, dashboard calculations, local storage and Google Drive backup/restore
+- `food-library.js` — offline Indian-food names, aliases and approximate serving calorie values
+- `google-config.js` — Google OAuth Web Client ID placeholder; configure before using Google features
+- `GOOGLE-DRIVE-SETUP.md` — setup steps, permissions, and privacy notes
 - `manifest.webmanifest` — home-screen/PWA metadata
 - `sw.js` — static offline caching
 - `apple-touch-icon.png`, `apple-touch-icon-v2.png`, `favicon-v2.ico`, `assets/` — app icon sizes and browser favicon

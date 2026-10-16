@@ -104,6 +104,19 @@ const main = document.getElementById('mainContent');
 const modalRoot = document.getElementById('modalRoot');
 const toastEl = document.getElementById('toast');
 
+// Google Drive uses a browser-only OAuth access token. The token is deliberately
+// kept in memory only; it is never saved to localStorage or exported in backups.
+const GOOGLE_CLIENT_ID = String(window.BLOOMDAY_GOOGLE_CLIENT_ID || '').trim();
+const GOOGLE_DRIVE_SCOPE = 'openid email profile https://www.googleapis.com/auth/drive.file';
+const DRIVE_BACKUP_NAME = 'BloomDay-backup.json';
+const DRIVE_FOLDER_NAME = 'BloomDay';
+let googleIdentityScriptPromise = null;
+let googleTokenClient = null;
+let driveAccessToken = null;
+let driveTokenExpiresAt = 0;
+let driveSessionAccount = null;
+let pendingDriveAction = null;
+
 function persist() {
   try {
     const safeState = { ...state, modal: null, toastTimer: null };
@@ -314,7 +327,7 @@ function renderMealDetail() {
     <div class="routine-summary"><span class="meal-emoji" style="width:55px;height:55px;font-size:27px">${escapeHTML(slot.icon || '🍽️')}</span><div class="summary-copy"><strong>${Math.round(mealCalories(state.selectedDate, slot.id)).toLocaleString()} kcal</strong><span>${meal.items.length} food items · ${meal.totalCalories !== '' ? 'using manual meal total' : 'sum of item calories'}</span></div></div>
     <section class="dash-card" style="margin-bottom:14px"><div class="section-heading" style="margin:0 0 12px"><div><h3>Meal calorie total</h3><p>Optional — overrides item calories when filled.</p></div></div><form data-form="meal-total" data-slotid="${escapeHTML(slot.id)}"><div class="form-grid"><div class="field full"><label for="totalCalories">Overall calories for ${escapeHTML(slot.name)} (kcal)</label><input id="totalCalories" name="totalCalories" type="number" min="0" max="20000" step="1" value="${escapeHTML(meal.totalCalories)}" placeholder="Leave blank to add the item calories"></div></div><div class="form-actions"><button class="secondary-button" type="button" data-action="clear-meal-total" data-slotid="${escapeHTML(slot.id)}">Clear total</button><button class="primary-button" type="submit">Save meal total</button></div></form></section>
     <div class="section-heading"><div><h2>Food items</h2><p>${meal.items.length ? `Item calories currently add up to ${Math.round(sumItems)} kcal.` : 'Add foods one at a time. You can add multiple foods.'}</p></div><button class="primary-button" data-action="open-food-form" data-slotid="${escapeHTML(slot.id)}">＋ Add item</button></div>
-    ${meal.items.length ? `<div class="task-list">${meal.items.map(item => `<article class="task-row"><span class="task-emoji">🥣</span><div class="task-main"><span class="task-title">${escapeHTML(item.name)}</span><span class="task-time">${escapeHTML(item.quantity)} ${escapeHTML(item.unit)}${item.calories !== '' ? ` · ${Math.round(Number(item.calories) || 0)} kcal` : ' · calories not entered'}</span></div><button class="row-menu" data-action="edit-food" data-slotid="${escapeHTML(slot.id)}" data-id="${escapeHTML(item.id)}" aria-label="Edit food item">✎</button><button class="row-menu" data-action="delete-food" data-slotid="${escapeHTML(slot.id)}" data-id="${escapeHTML(item.id)}" aria-label="Delete food item">×</button></article>`).join('')}</div>` : `<div class="empty-state"><strong>No items added yet</strong>Tap Add item to enter what you ate.</div>`}
+    ${meal.items.length ? `<div class="task-list">${meal.items.map(item => `<article class="task-row"><span class="task-emoji">🥣</span><div class="task-main"><span class="task-title">${escapeHTML(item.name)}</span><span class="task-time">${escapeHTML(item.quantity)} ${escapeHTML(item.unit)}${item.calories !== '' ? ` · ${item.calorieSource === 'estimated' ? '≈ ' : ''}${Math.round(Number(item.calories) || 0)} kcal${item.calorieSource === 'estimated' ? ' estimate' : ''}` : ' · calories not entered'}</span></div><button class="row-menu" data-action="edit-food" data-slotid="${escapeHTML(slot.id)}" data-id="${escapeHTML(item.id)}" aria-label="Edit food item">✎</button><button class="row-menu" data-action="delete-food" data-slotid="${escapeHTML(slot.id)}" data-id="${escapeHTML(item.id)}" aria-label="Delete food item">×</button></article>`).join('')}</div>` : `<div class="empty-state"><strong>No items added yet</strong>Tap Add item to enter what you ate.</div>`}
     <div class="section-heading"><div><h2>What's next?</h2><p>Keep your log honest and flexible.</p></div></div>
     <div class="inline-actions"><button class="secondary-button" data-action="edit-slot" data-id="${escapeHTML(slot.id)}">Edit category name / time</button><button class="secondary-button" data-action="back-to-diet">Back to all meals</button></div>`;
 }
@@ -408,7 +421,8 @@ function renderProfile() {
     </div><div class="form-actions"><button class="primary-button" type="submit">Save profile</button></div></form>
     <section class="dash-card" style="margin-bottom:13px"><h3>Manage routine</h3><p class="small-muted">Edit your full checklist, adjust times, hide tasks you no longer need or add new ones.</p><button class="secondary-button" data-action="manage-tasks">Edit routine tasks (${state.tasks.length})</button></section>
     <section class="dash-card" style="margin-bottom:13px"><h3>Backup & restore</h3><p class="small-muted">Export your profile, tasks, food entries, daily completions and weight history as a JSON file. Keep it somewhere safe.</p><div class="inline-actions"><button class="primary-button" data-action="export-backup">↓ Export backup</button><button class="secondary-button" data-action="import-backup">↑ Restore backup</button></div></section>
-    <section class="dash-card" style="margin-bottom:13px"><h3>Privacy & storage</h3><div class="info-banner">Your diet, routine and weight entries are stored in this browser's local storage. They are not uploaded by BloomDay. On iPhone, use Safari consistently and keep a backup. Clearing Safari website data may erase the entries.</div><p class="small-muted" style="margin:10px 0 0">The hosted website files can be public if using a public GitHub Pages repository, but your personal entries remain local to the browser unless you choose to export them.</p></section>
+    <section class="dash-card" style="margin-bottom:13px"><h3>Google sign-in & Drive backup</h3><p class="small-muted">Connect your Google account to save one BloomDay backup file in your Google Drive. Use Save and Restore when you want to move your data between devices.</p>${googleDriveStatusHTML()}<div class="inline-actions" style="margin-top:12px"><button class="secondary-button" data-action="google-connect">${driveSessionAccount ? 'Reconnect Google' : 'Sign in with Google'}</button><button class="primary-button" data-action="drive-save">Save to Google Drive</button><button class="secondary-button" data-action="drive-restore">Restore from Drive</button></div><p class="hint" style="margin-top:10px">Google Drive is optional. BloomDay continues saving locally. Drive backup is manual, not automatic syncing. Your access token is kept in memory only.</p></section>
+    <section class="dash-card" style="margin-bottom:13px"><h3>Privacy & storage</h3><div class="info-banner">Your diet, routine and weight entries stay in this browser until you choose to export them or save a backup to Google Drive. Drive access is limited to files BloomDay creates or files you explicitly open with it; it does not request access to all Drive files.</div><p class="small-muted" style="margin:10px 0 0">This static app uses Google directly from your browser; it has no BloomDay server or database receiving your health, diet or routine records.</p></section>
     <section class="dash-card"><h3>Reset this app</h3><p class="small-muted">This permanently clears the BloomDay data saved in this browser. Export a backup first if needed.</p><button class="danger-button" data-action="reset-data">Reset all local data</button></section>`;
 }
 function renderModal() {
@@ -437,12 +451,19 @@ function renderFoodModal(modal) {
   const meal = slot ? getMeal(state.selectedDate, slot.id) : { items: [] };
   const item = modal.id ? meal.items.find(food => food.id === modal.id) : null;
   const itemId = item?.id || '';
-  return `<form data-form="food" data-slotid="${escapeHTML(slot?.id || modal.slotId || '')}" data-id="${escapeHTML(itemId)}"><div class="form-grid">
-    <div class="field full"><label>Food / drink item</label><input name="name" value="${escapeHTML(item?.name || '')}" placeholder="e.g. Oats, banana, tea" required maxlength="100"></div>
+  const lookup = window.BLOOMDAY_FOOD_LOOKUP;
+  const initialEstimate = item && lookup ? lookup.estimate(item.name, item.quantity, item.unit) : null;
+  const manualCalories = item ? item.calorieSource !== 'estimated' : false;
+  const estimateMessage = initialEstimate
+    ? `Typical estimate for ${escapeHTML(initialEstimate.food.name)}: about ${initialEstimate.calories} kcal for this quantity. Recipes and oil/ghee can change the actual value.${manualCalories ? ' The saved calorie value is manual.' : ''} <button class="text-link-button" type="button" data-action="use-food-estimate">Use estimate</button>`
+    : 'Start typing an Indian food or drink and choose a suggestion to estimate calories. You can always enter calories manually.';
+  const options = lookup ? lookup.names.map(name => `<option value="${escapeHTML(name)}"></option>`).join('') : '';
+  return `<form data-form="food" data-slotid="${escapeHTML(slot?.id || modal.slotId || '')}" data-id="${escapeHTML(itemId)}" data-last-matched="${escapeHTML(lookup?.find(item?.name)?.name || '')}"><div class="form-grid">
+    <div class="field full"><label>Food / drink item</label><input name="name" list="indianFoodSuggestions" autocomplete="off" value="${escapeHTML(item?.name || '')}" placeholder="Try idli, dosa, rice, sambar, chicken curry…" required maxlength="100"><datalist id="indianFoodSuggestions">${options}</datalist><span class="hint">Includes common South Indian and Indian foods; choose a suggestion for an estimate.</span></div>
     <div class="field"><label>Quantity</label><input name="quantity" type="number" min="0" step="any" value="${escapeHTML(item?.quantity ?? '1')}" required></div>
     <div class="field"><label>Unit</label><select name="unit">${UNIT_OPTIONS.map(unit => `<option value="${unit}" ${(item?.unit || 'g') === unit ? 'selected' : ''}>${unit}</option>`).join('')}</select></div>
-    <div class="field full"><label>Calories (kcal) <span style="font-weight:400;color:var(--muted)">— optional per item</span></label><input name="calories" type="number" min="0" max="20000" step="1" value="${escapeHTML(item?.calories ?? '')}" placeholder="Leave blank if unknown"></div>
-  </div><p class="small-muted" style="margin:13px 0 0">Meal: <strong>${escapeHTML(slot?.name || '')}</strong> · ${escapeHTML(fmtDate(state.selectedDate))}. No automatic food database is connected, so enter calories from your chosen label or source.</p><div class="form-actions"><button class="secondary-button" type="button" data-action="close-modal">Cancel</button><button class="primary-button" type="submit">${item ? 'Save changes' : 'Add food item'}</button></div></form>`;
+    <div class="field full"><label>Calories (kcal) <span style="font-weight:400;color:var(--muted)">— estimated automatically, editable</span></label><input name="calories" data-manual="${manualCalories ? 'true' : 'false'}" type="number" min="0" max="20000" step="1" value="${escapeHTML(item?.calories ?? '')}" placeholder="Choose a food to estimate"><span class="hint">The estimate updates when the food, quantity or unit changes. Edit the number if needed.</span></div>
+  </div><div class="food-calorie-estimate" data-food-estimate role="status">${estimateMessage}</div><p class="small-muted" style="margin:10px 0 0">Meal: <strong>${escapeHTML(slot?.name || '')}</strong> · ${escapeHTML(fmtDate(state.selectedDate))}. Estimates are approximate, not exact nutrition analysis. For packaged foods, prefer the nutrition label. <a href="https://www.nin.res.in/ebooks/IFCT2017_16122024.pdf" target="_blank" rel="noreferrer">ICMR-NIN Indian Food Composition Tables</a> provides reference data for ingredients; prepared-dish estimates here are typical approximations.</p><div class="form-actions"><button class="secondary-button" type="button" data-action="close-modal">Cancel</button><button class="primary-button" type="submit">${item ? 'Save changes' : 'Add food item'}</button></div></form>`;
 }
 function renderSlotModal(modal) {
   const slot = modal.id ? state.mealSlots.find(item => item.id === modal.id) : null;
@@ -463,13 +484,175 @@ function renderWeightModal(modal) {
 function renderManageTasksModal() {
   return `<p class="small-muted" style="margin-top:-5px">Edit a task, hide one from the daily list, or add another.</p><div class="task-list">${state.tasks.map(task => `<article class="task-row"><span class="task-emoji">${escapeHTML(task.icon || '🌸')}</span><div class="task-main"><span class="task-title">${escapeHTML(task.title)}</span><span class="task-time">${escapeHTML(task.time || 'Time not set')}${task.enabled === false ? ' · hidden' : ''}</span></div><button class="row-menu" data-action="edit-task" data-id="${escapeHTML(task.id)}">✎</button></article>`).join('')}</div><div class="form-actions"><button class="secondary-button" type="button" data-action="close-modal">Close</button><button class="primary-button" type="button" data-action="open-task-form">＋ Add task</button></div>`;
 }
+function googleDriveConfigured() {
+  return Boolean(GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes('PASTE_YOUR_'));
+}
+function googleDriveStatusHTML() {
+  if (!googleDriveConfigured()) return `<div class="info-banner">One-time setup required: add your Google OAuth Web Client ID to <code>google-config.js</code>, then upload that file to GitHub. Read the included GOOGLE-DRIVE-SETUP.md first.</div>`;
+  if (driveSessionAccount) return `<div class="info-banner">✅ Connected for this session as <strong>${escapeHTML(driveSessionAccount.email || driveSessionAccount.name || 'Google account')}</strong>. Google authorization may need to be renewed after this page is reloaded.</div>`;
+  return `<div class="info-banner">Google Drive is not connected for this page session. Select Sign in with Google, or choose Save / Restore to authorize Drive access when needed.</div>`;
+}
 function renderBackupModal() {
-  return `<div class="info-banner">Your backup is a JSON file containing profile details, routine tasks, food logs, daily completion states and weight history.</div><div style="height:12px"></div><div class="inline-actions"><button class="primary-button" data-action="export-backup">↓ Export backup</button><button class="secondary-button" data-action="import-backup">↑ Restore backup</button></div><p class="small-muted" style="margin-top:15px">Keep the exported file somewhere safe. Restoring a backup will replace the data in this browser.</p><div class="form-actions"><button class="secondary-button" data-action="close-modal">Done</button></div>`;
+  return `<div class="info-banner">Your backup includes profile details, routine tasks, food entries, daily completion states and weight history. Restoring replaces the data currently stored in this browser.</div>
+    <div style="height:12px"></div><div class="inline-actions"><button class="primary-button" data-action="export-backup">↓ Export JSON</button><button class="secondary-button" data-action="import-backup">↑ Restore JSON</button></div>
+    <section class="dash-card" style="margin-top:16px"><h3>Google Drive</h3><p class="small-muted">Save or restore a single <strong>BloomDay-backup.json</strong> file in your Drive's BloomDay folder.</p>${googleDriveStatusHTML()}<div class="inline-actions" style="margin-top:12px"><button class="secondary-button" data-action="google-connect">${driveSessionAccount ? 'Reconnect Google' : 'Sign in with Google'}</button><button class="primary-button" data-action="drive-save">Save to Drive</button><button class="secondary-button" data-action="drive-restore">Restore from Drive</button></div></section>
+    <p class="small-muted" style="margin-top:15px">Google Drive is optional. Keep using local storage or JSON export if you prefer. Tokens are not stored on this device.</p><div class="form-actions"><button class="secondary-button" data-action="close-modal">Done</button></div>`;
 }
 function closeModal() { state.modal = null; renderModal(); }
 function openModal(type, properties = {}) { state.modal = { type, ...properties }; renderModal(); }
+function makeBackupPayload() {
+  return { app: 'BloomDay', exportedAt: new Date().toISOString(), version: 1, data: { ...state, modal: null, toastTimer: null } };
+}
+function loadGoogleIdentityServices() {
+  if (window.google?.accounts?.oauth2) return Promise.resolve();
+  if (googleIdentityScriptPromise) return googleIdentityScriptPromise;
+  googleIdentityScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => window.google?.accounts?.oauth2 ? resolve() : reject(new Error('Google identity services did not initialize.'));
+    script.onerror = () => reject(new Error('Could not load Google sign-in. Check your internet connection.'));
+    document.head.appendChild(script);
+  });
+  return googleIdentityScriptPromise;
+}
+function requestGoogleDriveAccess(action) {
+  if (!googleDriveConfigured()) {
+    showToast('Add your Google OAuth Client ID to google-config.js first.');
+    return;
+  }
+  if (driveAccessToken && Date.now() < driveTokenExpiresAt - 30000) {
+    if (action === 'connect') { showToast(`Google connected: ${driveSessionAccount?.email || 'account ready'}`); render(); if (state.modal) renderModal(); }
+    else runDriveAction(action).catch(error => { console.error(error); showToast(error.message || 'Google Drive action failed.'); });
+    return;
+  }
+  // requestAccessToken must be called directly from a user gesture. If the Google
+  // library did not load (e.g. slow connection), load it and ask the user to tap again.
+  if (!window.google?.accounts?.oauth2) {
+    loadGoogleIdentityServices().then(() => showToast('Google sign-in is ready. Tap the action again.')).catch(error => { console.error(error); showToast(error.message || 'Unable to load Google sign-in.'); });
+    return;
+  }
+  pendingDriveAction = action;
+  googleTokenClient = window.google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: GOOGLE_DRIVE_SCOPE,
+    callback: handleGoogleTokenResponse,
+    error_callback: error => { pendingDriveAction = null; showToast(error?.message || 'Google sign-in was cancelled or failed.'); }
+  });
+  googleTokenClient.requestAccessToken({ prompt: driveSessionAccount ? '' : 'select_account' });
+}
+async function handleGoogleTokenResponse(response) {
+  if (!response || response.error || !response.access_token) {
+    pendingDriveAction = null;
+    showToast(response?.error_description || response?.error || 'Google did not grant Drive access.');
+    return;
+  }
+  driveAccessToken = response.access_token;
+  driveTokenExpiresAt = Date.now() + (Number(response.expires_in) || 3600) * 1000;
+  try {
+    const profileResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: `Bearer ${driveAccessToken}` } });
+    if (profileResponse.ok) {
+      const profile = await profileResponse.json();
+      driveSessionAccount = { name: profile.name || '', email: profile.email || '' };
+    } else driveSessionAccount = { name: '', email: '' };
+  } catch (_) { driveSessionAccount = { name: '', email: '' }; }
+  const action = pendingDriveAction; pendingDriveAction = null;
+  render(); if (state.modal) renderModal();
+  if (action === 'connect') showToast(`Google connected${driveSessionAccount.email ? `: ${driveSessionAccount.email}` : ''}.`);
+  else if (action) await runDriveAction(action);
+}
+async function driveFetch(url, options = {}) {
+  if (!driveAccessToken || Date.now() >= driveTokenExpiresAt - 10000) throw new Error('Google Drive access expired. Please connect again.');
+  const response = await fetch(url, { ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${driveAccessToken}` } });
+  if (!response.ok) {
+    let detail = '';
+    try { const json = await response.json(); detail = json.error?.message || json.error_description || ''; } catch (_) {}
+    if (response.status === 401) { driveAccessToken = null; driveTokenExpiresAt = 0; }
+    throw new Error(detail ? `Google Drive: ${detail}` : `Google Drive request failed (${response.status}).`);
+  }
+  return response;
+}
+async function listDriveFiles(query) {
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', query);
+  url.searchParams.set('spaces', 'drive');
+  url.searchParams.set('pageSize', '100');
+  url.searchParams.set('orderBy', 'modifiedTime desc');
+  url.searchParams.set('fields', 'files(id,name,mimeType,modifiedTime,parents)');
+  const response = await driveFetch(url.toString());
+  const payload = await response.json();
+  return Array.isArray(payload.files) ? payload.files : [];
+}
+async function ensureDriveFolder() {
+  const safeFolderName = DRIVE_FOLDER_NAME.replace(/'/g, "\'");
+  const existing = await listDriveFiles(`name = '${safeFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`);
+  if (existing.length) return existing[0].id;
+  const response = await driveFetch('https://www.googleapis.com/drive/v3/files?fields=id,name', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+  });
+  const folder = await response.json();
+  if (!folder.id) throw new Error('Google Drive did not return a folder ID.');
+  return folder.id;
+}
+async function saveDriveBackup() {
+  const folderId = await ensureDriveFolder();
+  const safeBackupName = DRIVE_BACKUP_NAME.replace(/'/g, "\'");
+  const existing = await listDriveFiles(`name = '${safeBackupName}' and '${folderId}' in parents and trashed = false`);
+  const content = JSON.stringify(makeBackupPayload(), null, 2);
+  if (existing.length) {
+    await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(existing[0].id)}?uploadType=media`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json; charset=UTF-8' }, body: content
+    });
+  } else {
+    const boundary = `bloomday_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const metadata = { name: DRIVE_BACKUP_NAME, mimeType: 'application/json', parents: [folderId] };
+    const multipart = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${content}\r\n--${boundary}--`;
+    await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime', {
+      method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${boundary}` }, body: multipart
+    });
+  }
+  localStorage.setItem('bloomday.lastDriveBackupAt', new Date().toISOString());
+  showToast('BloomDay backup saved to Google Drive.');
+  render(); if (state.modal) renderModal();
+}
+async function restoreDriveBackup() {
+  const safeBackupName = DRIVE_BACKUP_NAME.replace(/'/g, "\'");
+  const folders = await listDriveFiles(`name = '${DRIVE_FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`);
+  if (!folders.length) { showToast('No BloomDay folder found in this Google Drive yet.'); return; }
+  const files = await listDriveFiles(`name = '${safeBackupName}' and '${folders[0].id}' in parents and trashed = false`);
+  if (!files.length) { showToast('No BloomDay backup was found in this Google Drive.'); return; }
+  const response = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(files[0].id)}?alt=media`);
+  const payload = await response.json();
+  restoreBackupPayload(payload, 'Google Drive');
+}
+async function runDriveAction(action) {
+  if (!driveAccessToken || Date.now() >= driveTokenExpiresAt - 10000) {
+    requestGoogleDriveAccess(action); return;
+  }
+  try {
+    if (action === 'save') await saveDriveBackup();
+    else if (action === 'restore') await restoreDriveBackup();
+  } catch (error) {
+    console.error('BloomDay Drive error:', error);
+    if (/expired|401/i.test(error.message)) { driveAccessToken = null; driveTokenExpiresAt = 0; }
+    showToast(error.message || 'Google Drive action failed.');
+  }
+}
+function restoreBackupPayload(payload, sourceLabel = 'backup file') {
+  try {
+    const incoming = payload.data || payload;
+    if (!incoming.profile || !Array.isArray(incoming.tasks) || !Array.isArray(incoming.mealSlots) || !incoming.records || typeof incoming.records !== 'object') throw new Error('This does not look like a BloomDay backup.');
+    if (!window.confirm(`Restore this ${sourceLabel}? Current BloomDay data in this browser will be replaced.`)) return false;
+    const defaults = freshState();
+    state = { ...defaults, ...incoming, modal: null, toastTimer: null };
+    state.profile = { ...defaults.profile, ...(incoming.profile || {}) };
+    persist(); modalRoot.innerHTML = ''; render(); showToast(`${sourceLabel === 'Google Drive' ? 'Google Drive backup' : 'Backup'} restored successfully.`); return true;
+  } catch (error) { alert(`Could not restore ${sourceLabel}: ${error.message}`); return false; }
+}
 function exportBackup() {
-  const payload = { app: 'BloomDay', exportedAt: new Date().toISOString(), version: 1, data: { ...state, modal: null, toastTimer: null } };
+  const payload = makeBackupPayload();
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -483,18 +666,69 @@ function importBackupFile(file) {
   reader.onload = () => {
     try {
       const payload = JSON.parse(String(reader.result || '{}'));
-      const incoming = payload.data || payload;
-      if (!incoming.profile || !Array.isArray(incoming.tasks) || !Array.isArray(incoming.mealSlots) || !incoming.records || typeof incoming.records !== 'object') throw new Error('This does not look like a BloomDay backup.');
-      if (!window.confirm('Restore this backup? Current BloomDay data in this browser will be replaced.')) return;
-      const defaults = freshState();
-      state = { ...defaults, ...incoming, modal: null, toastTimer: null };
-      state.profile = { ...defaults.profile, ...(incoming.profile || {}) };
-      persist(); render(); showToast('Backup restored successfully.');
+      restoreBackupPayload(payload, 'backup file');
     } catch (error) { alert(`Could not restore this file: ${error.message}`); }
   };
   reader.onerror = () => alert('Could not read that backup file.');
   reader.readAsText(file);
 }
+
+function updateFoodEstimate(form, options = {}) {
+  if (!form || !window.BLOOMDAY_FOOD_LOOKUP) return;
+  const nameInput = form.elements.name;
+  const quantityInput = form.elements.quantity;
+  const unitInput = form.elements.unit;
+  const caloriesInput = form.elements.calories;
+  const note = form.querySelector('[data-food-estimate]');
+  if (!nameInput || !quantityInput || !unitInput || !caloriesInput) return;
+  const food = window.BLOOMDAY_FOOD_LOOKUP.find(nameInput.value);
+  if (options.nameChanged) {
+    const previous = form.dataset.lastMatched || '';
+    if (food && food.name !== previous && !form.dataset.id) {
+      quantityInput.value = String(food.defaultQuantity || 1);
+      unitInput.value = food.defaultUnit || 'g';
+    }
+    caloriesInput.dataset.manual = 'false';
+    if (!food) caloriesInput.value = '';
+    form.dataset.lastMatched = food?.name || '';
+  }
+  const result = food ? window.BLOOMDAY_FOOD_LOOKUP.estimate(nameInput.value, quantityInput.value, unitInput.value) : null;
+  if (result && caloriesInput.dataset.manual !== 'true') {
+    caloriesInput.value = String(result.calories);
+  }
+  if (note) {
+    if (result) {
+      const manualText = caloriesInput.dataset.manual === 'true' ? ' Your current calorie field is manually entered.' : ' This estimate is filled into the calorie field.';
+      note.innerHTML = `Approximate estimate for <strong>${escapeHTML(result.food.name)}</strong>: <strong>${result.calories} kcal</strong> for ${escapeHTML(quantityInput.value)} ${escapeHTML(unitInput.value)} (about ${Math.round(result.grams)} g edible portion).${manualText} <button class="text-link-button" type="button" data-action="use-food-estimate">Use estimate</button>`;
+    } else {
+      note.textContent = nameInput.value.trim()
+        ? 'No exact match found in the built-in Indian food list. You can enter calories manually, or try a shorter/common food name.'
+        : 'Start typing an Indian food or drink and choose a suggestion to estimate calories. You can always enter calories manually.';
+    }
+  }
+}
+
+// Update Indian-food estimates as users enter a food name, quantity or unit.
+document.addEventListener('input', event => {
+  const control = event.target;
+  const form = control.closest('form[data-form="food"]');
+  if (!form) return;
+  if (control.name === 'calories') {
+    control.dataset.manual = 'true';
+    updateFoodEstimate(form);
+    return;
+  }
+  if (control.name === 'name') updateFoodEstimate(form, { nameChanged: true });
+  else if (['quantity', 'unit'].includes(control.name)) updateFoodEstimate(form);
+});
+document.addEventListener('change', event => {
+  const control = event.target;
+  const form = control.closest('form[data-form="food"]');
+  if (form && ['name', 'quantity', 'unit'].includes(control.name)) {
+    updateFoodEstimate(form, { nameChanged: control.name === 'name' });
+    return;
+  }
+});
 
 // Click handling is delegated so the UI can be refreshed from saved state.
 document.addEventListener('click', event => {
@@ -524,6 +758,17 @@ document.addEventListener('click', event => {
     case 'back-to-diet': switchScreen('diet'); break;
     case 'open-food-form': openModal('food', { title: 'Add a food item', slotId: slotid || state.activeSlotId, id: '' }); break;
     case 'edit-food': openModal('food', { title: 'Edit food item', slotId: slotid || state.activeSlotId, id }); break;
+    case 'use-food-estimate': {
+      const form = actionButton.closest('form[data-form="food"]');
+      if (!form || !window.BLOOMDAY_FOOD_LOOKUP) break;
+      const estimation = window.BLOOMDAY_FOOD_LOOKUP.estimate(form.elements.name.value, form.elements.quantity.value, form.elements.unit.value);
+      if (!estimation) { showToast('Choose a food from the suggestions first.'); break; }
+      form.elements.calories.value = String(estimation.calories);
+      form.elements.calories.dataset.manual = 'false';
+      updateFoodEstimate(form);
+      showToast(`Estimate applied: ${estimation.calories} kcal.`);
+      break;
+    }
     case 'delete-food': {
       const meal = getMeal(state.selectedDate, slotid || state.activeSlotId);
       const food = meal.items.find(item => item.id === id);
@@ -554,6 +799,9 @@ document.addEventListener('click', event => {
     case 'next-date': state.selectedDate = addDays(state.selectedDate, 1); persist(); render(); break;
     case 'edit-profile': document.querySelector('#mainContent form[data-form="profile"] input[name="name"]')?.focus(); break;
     case 'open-backup': openModal('backup', { title: 'Backup & restore' }); break;
+    case 'google-connect': requestGoogleDriveAccess('connect'); break;
+    case 'drive-save': requestGoogleDriveAccess('save'); break;
+    case 'drive-restore': requestGoogleDriveAccess('restore'); break;
     case 'export-backup': exportBackup(); break;
     case 'import-backup': document.getElementById('backupImport').click(); break;
     case 'reset-data':
@@ -616,7 +864,8 @@ document.addEventListener('submit', event => {
     const food = {
       id: id || makeId('food'), name: String(values.get('name') || '').trim(),
       quantity: String(values.get('quantity') || '1'), unit: String(values.get('unit') || 'g'),
-      calories: String(values.get('calories') || '').trim()
+      calories: String(values.get('calories') || '').trim(),
+      calorieSource: form.elements.calories?.dataset.manual === 'true' ? 'manual' : (window.BLOOMDAY_FOOD_LOOKUP?.find(String(values.get('name') || '')) && String(values.get('calories') || '').trim() !== '' ? 'estimated' : (String(values.get('calories') || '').trim() !== '' ? 'manual' : ''))
     };
     if (!food.name || !food.quantity || Number(food.quantity) < 0) { showToast('Enter a food name and valid quantity.'); return; }
     const index = meal.items.findIndex(item => item.id === id);
@@ -662,6 +911,10 @@ document.getElementById('backupImport').addEventListener('change', event => {
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(error => console.warn('Offline caching could not be enabled.', error)));
 }
+
+// Warm the Google Identity Services library. Google features remain optional and the app
+// still works locally if the script cannot be loaded.
+if (googleDriveConfigured() && !window.google?.accounts?.oauth2) loadGoogleIdentityServices().catch(() => {});
 
 // Keep a record container available for the current day after setup.
 if (state.profile.setupComplete) getRecord(state.selectedDate);

@@ -1,0 +1,18 @@
+BloomDay Indian Food Calorie Lookup - Update Instructions
+
+Upload these files to the ROOT of your existing GitHub repository (the same level as index.html), replacing files with the same names:
+- index.html
+- app.js
+- styles.css
+- sw.js
+- README.md
+
+Add these new files:
+- food-library.js
+- FOOD-CALORIE-LOOKUP.md
+
+IMPORTANT: Keep your existing google-config.js and assets/ folder as they are. Do not replace google-config.js, because it may contain your Google OAuth Client ID.
+
+Commit the files to the branch used by GitHub Pages and wait for deployment. The service worker cache was incremented to v4. If an old version remains visible, reload the website; on iPhone, close and reopen BloomDay from Safari/Home Screen. If required, remove and re-add the Home Screen shortcut, but this should not normally be necessary for this update.
+
+In Diet Tracker > a meal category > Add item, type an item such as idli, plain dosa, cooked red rice, sambar, keerai poriyal, chicken biryani, fish curry, curd rice, filter coffee or banana. Choose the autocomplete suggestion. The portion/unit and calorie estimate will be filled in. Edit quantity/unit to recalculate. Estimates are approximate and can be overridden manually.

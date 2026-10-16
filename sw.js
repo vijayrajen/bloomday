@@ -1,6 +1,6 @@
-const CACHE_NAME = 'bloomday-static-v2';
+const CACHE_NAME = 'bloomday-static-v4';
 const APP_FILES = [
-  './', './index.html', './styles.css', './app.js', './manifest.webmanifest',
+  './', './index.html', './styles.css', './app.js', './food-library.js', './google-config.js', './manifest.webmanifest',
   './apple-touch-icon.png', './apple-touch-icon-v2.png', './favicon-v2.ico', './assets/favicon-32-v2.png', './assets/icon-192-v2.png', './assets/icon-512-v2.png'
 ];
 self.addEventListener('install', event => {

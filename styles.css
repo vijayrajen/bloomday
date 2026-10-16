@@ -160,6 +160,9 @@ h3 { margin-bottom:8px; font-size:15px; }
 .close-button { width:34px;height:34px;border:0;border-radius:12px;background:#ffe7ef;color:var(--pink-dark);font-size:22px; }
 .notice { border:1px solid #ffdfba;background:#fff8ed;color:#885521;border-radius:14px;padding:12px;font-size:12px;line-height:1.5; }
 .info-banner { padding:13px 15px;border-radius:16px;background:#fff0f5;color:#8a506c;font-size:12px;line-height:1.5; }
+.food-calorie-estimate { margin-top:12px;padding:12px 14px;border:1px solid #f6ccdc;border-radius:14px;background:#fff0f5;color:#78435e;font-size:12px;line-height:1.55; }
+.food-calorie-estimate strong { color:#bd245d; }
+.text-link-button { margin-left:5px;padding:0;border:0;background:transparent;color:#c72e69;font:inherit;font-weight:800;text-decoration:underline;cursor:pointer; }
 .setup-wrap { max-width:610px;margin:25px auto;padding:25px;background:linear-gradient(145deg,#ffedf3,#fff9fb 65%);border:1px solid var(--rose-200);border-radius:28px;box-shadow:var(--card-shadow); }
 .setup-brand { display:flex;align-items:center;gap:13px;margin-bottom:23px; }
 .setup-brand img { width:65px;height:65px;border-radius:20px; }
