@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ef4f86">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="BloomDay">
+  <meta name="description" content="A personal pink-themed daily routine, diet and weight tracker.">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+  <title>BloomDay · Healthy habits, happier you</title>
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <button class="brand" data-action="go-home" aria-label="BloomDay home">
+        <img src="./assets/icon-192.png" alt="" class="brand-icon">
+        <span><strong>BloomDay</strong><small>Healthy habits, happier you</small></span>
+      </button>
+      <div class="top-actions">
+        <span class="today-pill" id="todayLabel"></span>
+        <button class="icon-button" data-action="open-backup" aria-label="Backup and restore" title="Backup and restore">↥</button>
+      </div>
+    </header>
+
+    <main id="mainContent" class="main-content" tabindex="-1"></main>
+
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button data-nav="home" class="nav-item"><span>⌂</span><small>Home</small></button>
+      <button data-nav="routine" class="nav-item"><span>✓</span><small>Routine</small></button>
+      <button data-nav="diet" class="nav-item"><span>♡</span><small>Diet</small></button>
+      <button data-nav="dashboard" class="nav-item"><span>▥</span><small>Dashboard</small></button>
+      <button data-nav="profile" class="nav-item"><span>☻</span><small>Profile</small></button>
+    </nav>
+  </div>
+  <div id="modalRoot"></div>
+  <input id="backupImport" type="file" accept="application/json,.json" hidden>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js" defer></script>
+</body>
+</html>
