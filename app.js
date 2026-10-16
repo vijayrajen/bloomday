@@ -229,7 +229,7 @@ function render() {
 }
 function renderSetup() {
   return `<section class="setup-wrap">
-    <div class="setup-brand"><img src="./assets/icon-192.png" alt="BloomDay icon"><div><h1>BloomDay</h1><p>Healthy habits, happier you 🌸</p></div></div>
+    <div class="setup-brand"><img src="./assets/icon-192-v2.png" alt="BloomDay icon"><div><h1>BloomDay</h1><p>Healthy habits, happier you 🌸</p></div></div>
     <div class="eyebrow">A little space for you</div>
     <h2 style="font-size:25px;margin:8px 0 7px">Let's make today a good day</h2>
     <p class="small-muted" style="font-size:13px;margin-bottom:22px">Add your details to personalize your routine, food and weight progress. You can edit these any time.</p>

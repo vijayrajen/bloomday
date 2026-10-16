@@ -31,7 +31,7 @@ If Windows blocks the script, use the included `.bat` file (it invokes PowerShel
 GitHub Pages serves static files from a repository. To publish:
 
 1. Sign in to GitHub and create a new **public** repository named `bloomday` (no paid plan required for a public repository).
-2. Upload the *contents* of this folder into the repository's root. Make sure `index.html`, `styles.css`, `app.js`, `manifest.webmanifest`, `sw.js`, `apple-touch-icon.png`, `assets/` and `.nojekyll` are at the root level.
+2. Upload the *contents* of this folder into the repository's root. Make sure `index.html`, `styles.css`, `app.js`, `manifest.webmanifest`, `sw.js`, `apple-touch-icon.png`, `apple-touch-icon-v2.png`, `favicon-v2.ico`, `assets/` and `.nojekyll` are at the root level. Keep the contents of `assets/` in a folder named exactly `assets`. If updating an earlier deployment, upload/replace the files and commit the changes.
 3. Open the repository's **Settings → Pages**.
 4. Under **Build and deployment**, choose **Deploy from a branch**.
 5. Choose branch `main` and folder `/(root)`, then save.
@@ -39,6 +39,13 @@ GitHub Pages serves static files from a repository. To publish:
 7. Open that exact address in Safari on your wife's iPhone.
 
 **Privacy note:** a public GitHub Pages site means the website source files are public. BloomDay does not send entries to GitHub or a server; profile, tasks and logs are saved in browser local storage on the device/browser where she uses the app. Do not put personal data inside the source files or repository. This version does not synchronise records between devices.
+
+## If the icon is missing on GitHub Pages
+
+- Confirm the files `apple-touch-icon-v2.png`, `favicon-v2.ico` and `assets/icon-192-v2.png` are committed in the repository at the same level as `index.html` (with the PNGs inside `assets/`). File and folder names are case-sensitive.
+- Test the published paths by opening `YOUR-PAGES-URL/apple-touch-icon-v2.png` and `YOUR-PAGES-URL/assets/icon-192-v2.png` directly. If either gives a 404, correct the uploaded file locations.
+- After updating the repository, wait for the Pages deployment to finish, then reload the page. The updated service-worker cache is named v2 to avoid using the old icon cache.
+- For an iPhone Home Screen icon, remove the old BloomDay shortcut and add it again from Safari after deployment.
 
 ## Add to the iPhone Home Screen
 
@@ -65,5 +72,5 @@ Use Safari consistently for BloomDay. The app's local browser storage is separat
 - `app.js` — routines, diet records, dashboard calculations and local storage
 - `manifest.webmanifest` — home-screen/PWA metadata
 - `sw.js` — static offline caching
-- `apple-touch-icon.png`, `assets/` — app icon sizes
+- `apple-touch-icon.png`, `apple-touch-icon-v2.png`, `favicon-v2.ico`, `assets/` — app icon sizes and browser favicon
 - `start-local.bat` — local Windows preview
