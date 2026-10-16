@@ -1,24 +1,26 @@
-BloomDay visible Indian-food suggestion dropdown fix (v5)
+BLOOMDAY — DAILY MOTIVATION UPDATE
 
-FIXES
-- Replaces the browser's native datalist with a consistent custom pink suggestion dropdown.
-- Shows popular suggestions when the food field is focused; filters food names and aliases as the user types.
-- Selecting a food fills the common portion, unit, and estimated calories. Quantity/unit changes recalculate the estimate.
-- Adds keyboard navigation (up/down/enter/escape) for the suggestion list.
-- Bumps service-worker cache and adds query versioning to avoid the old app script being cached.
+This add-on changes the two motivational messages on the home screen once per local calendar day. It works offline, uses no API, does not change saved user data, and requires no paid service.
 
-INSTALL ON GITHUB PAGES
-1. Extract this ZIP.
-2. Open the extracted BloomDay-Autocomplete-Fix folder.
-3. Upload and replace these five files at the ROOT of https://github.com/vijayrajen/bloomday:
-   index.html, app.js, styles.css, sw.js, food-library.js
-4. Commit changes to the branch used by GitHub Pages, usually main. Wait until the Pages deployment finishes.
-5. Test https://vijayrajen.github.io/bloomday/?refresh=5. In Diet Tracker > meal > Add item, type "idl". You should see a visible pink suggestion for Idli. Tap it; portion and calories should fill automatically.
+FILES
+- daily-motivation.js: add this file to the repository root, alongside index.html and app.js.
 
-IMPORTANT
-- DO NOT replace google-config.js; it may contain your Google OAuth Client ID.
-- Keep your existing assets folder and icons unchanged.
-- This is a patch, not a full site replacement. Upload the five specified files to the repository root, not a nested folder.
-- If old text remains, use Ctrl+F5 on desktop. On iPhone, close and reopen Safari/the Home Screen app after deployment.
+ONE SMALL HTML CHANGE
+In index.html, find the existing script tag that loads app.js, likely:
+  <script src="./app.js"></script>
+Immediately AFTER it, add:
+  <script src="./daily-motivation.js?v=1"></script>
 
-Calorie estimates are approximate and vary with recipe, portion, oil/ghee, coconut, and sugar. Packaged-food labels are preferred when available.
+If app.js is loaded with a version query already, keep that line unchanged and add the new script after it. Do not replace index.html or app.js wholesale.
+
+PUBLISH
+1. Upload daily-motivation.js to the repository root.
+2. Edit index.html and add the script line after app.js.
+3. Commit to main and wait for GitHub Pages to deploy.
+4. Open https://vijayrajen.github.io/bloomday/?motivation=1 and press Ctrl+Shift+R.
+
+HOW IT WORKS
+- The message is selected using the phone/computer's local calendar day, so refreshes on the same day show the same messages.
+- It rotates through 365 distinct motivational lines, then repeats next year.
+- It only changes the two existing home-screen motivational texts.
+- It does not alter routines, meals, calorie data, Google Drive settings, or backups.
