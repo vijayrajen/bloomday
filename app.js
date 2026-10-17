@@ -1008,7 +1008,7 @@ document.getElementById('backupImport').addEventListener('change', event => {
 
 // Register the offline app shell only when served over HTTPS or localhost.
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=6').catch(error => console.warn('Offline caching could not be enabled.', error)));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=7').catch(error => console.warn('Offline caching could not be enabled.', error)));
 }
 
 // Warm the Google Identity Services library. Google features remain optional and the app
