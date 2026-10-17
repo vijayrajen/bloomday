@@ -39,21 +39,36 @@
   }
   const ORIGINAL_HERO = 'Small steps count. Take care of yourself today, and let consistency do the rest.';
   const ORIGINAL_ENCOURAGEMENT = "💗 You don't have to do everything perfectly. Just return to your habits, one day at a time.";
-  function applyMessages() {
-    const daily = todaysMessages();
-    const heroText = document.querySelector('.hero p');
-    if (heroText && (heroText.textContent.trim() === ORIGINAL_HERO || heroText.dataset.dailyMotivation === 'true')) {
+  
+function applyMessages() {
+  const daily = todaysMessages();
+  const heroText = document.querySelector('.hero p');
+  if (
+    heroText &&
+    (
+      heroText.textContent.trim() === ORIGINAL_HERO ||
+      heroText.dataset.dailyMotivation === 'true'
+    )
+  ) {
+    if (heroText.textContent !== daily.hero) {
       heroText.textContent = daily.hero;
-      heroText.dataset.dailyMotivation = 'true';
     }
-    document.querySelectorAll('.info-banner').forEach(function (banner) {
-      const text = banner.textContent.trim();
-      if (text === ORIGINAL_ENCOURAGEMENT || banner.dataset.dailyMotivation === 'true') {
-        banner.textContent = '💗 ' + daily.encouragement;
-        banner.dataset.dailyMotivation = 'true';
-      }
-    });
+    heroText.dataset.dailyMotivation = 'true';
   }
+  document.querySelectorAll('.info-banner').forEach(function (banner) {
+    const text = banner.textContent.trim();
+    const newText = '💗 ' + daily.encouragement;
+    if (
+      text === ORIGINAL_ENCOURAGEMENT ||
+      banner.dataset.dailyMotivation === 'true'
+    ) {
+      if (text !== newText) {
+        banner.textContent = newText;
+      }
+      banner.dataset.dailyMotivation = 'true';
+    }
+  });
+}
   applyMessages();
   const observer = new MutationObserver(applyMessages);
   observer.observe(document.body, { childList: true, subtree: true });
